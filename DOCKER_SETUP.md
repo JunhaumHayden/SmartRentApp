@@ -8,42 +8,42 @@
 ## Opção 1: Usando Docker Compose (Recomendado)
 
 ### 1. Navegue até o diretório do projeto
-\`\`\`bash
+```bash
 cd smartrent-estimator
-\`\`\`
+```
 
 ### 2. Certifique-se de que o modelo ML está no lugar correto
-\`\`\`bash
+```bash
 # O arquivo deve estar em:
 # scripts/modelo_3_regressao_linear.pkl
 ls scripts/modelo_3_regressao_linear.pkl
-\`\`\`
+```
 
 ### 3. Execute o projeto
-\`\`\`bash
+```bash
 docker-compose up --build
-\`\`\`
+```
 
 ### 4. Acesse a aplicação
 Abra seu navegador em: **http://localhost:3000**
 
 ### 5. Para parar a aplicação
 Pressione `Ctrl+C` no terminal, ou em outro terminal:
-\`\`\`bash
+```bash
 docker-compose down
-\`\`\`
+```
 
 ## Opção 2: Usando Docker diretamente
 
 ### 1. Build da imagem
-\`\`\`bash
+```bash
 docker build -t smartrent-estimator .
-\`\`\`
+```
 
 ### 2. Execute o container
-\`\`\`bash
+```bash
 docker run -p 3000:3000 -v $(pwd)/scripts:/app/scripts:ro smartrent-estimator
-\`\`\`
+```
 
 ### 3. Acesse a aplicação
 Abra seu navegador em: **http://localhost:3000**
@@ -53,18 +53,18 @@ Abra seu navegador em: **http://localhost:3000**
 Se preferir executar sem Docker:
 
 ### 1. Instale as dependências
-\`\`\`bash
+```bash
 bun install
 # ou
 npm install
-\`\`\`
+```
 
 ### 2. Execute em modo desenvolvimento
-\`\`\`bash
+```bash
 bun dev
 # ou
 npm run dev
-\`\`\`
+```
 
 ### 3. Acesse a aplicação
 Abra seu navegador em: **http://localhost:3000**
@@ -79,44 +79,44 @@ Abra seu navegador em: **http://localhost:3000**
 ### Dependências Python
 Se você precisar executar o script Python diretamente (fora do Next.js):
 
-\`\`\`bash
+```bash
 # Instalar dependências Python
 pip install pandas scikit-learn
 
 # Executar o script
 python scripts/ml_model.py
-\`\`\`
+```
 
 ### Variáveis de Ambiente
 Se você tiver variáveis de ambiente, crie um arquivo `.env.local`:
 
-\`\`\`env
+```env
 # Exemplo
 NEXT_PUBLIC_API_URL=http://localhost:3000
-\`\`\`
+```
 
 ## 🔧 Troubleshooting
 
 ### Porta 3000 já está em uso
-\`\`\`bash
+```bash
 # Mude a porta no docker-compose.yml
 ports:
   - "3001:3000"  # Usa porta 3001 no host
-\`\`\`
+```
 
 ### Erro de permissão no Docker
-\`\`\`bash
+```bash
 # Execute com sudo (Linux/Mac)
 sudo docker-compose up --build
-\`\`\`
+```
 
 ### Rebuild completo
-\`\`\`bash
+```bash
 # Limpar cache e rebuild
 docker-compose down
 docker-compose build --no-cache
 docker-compose up
-\`\`\`
+```
 
 ## 🚀 Deploy em Produção
 
