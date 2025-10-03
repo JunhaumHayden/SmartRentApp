@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
 
+const EXTERNAL_API_URL = process.env.EXTERNAL_API_URL || "http://127.0.0.1:8000/predict"
+const API_TIMEOUT = 5000 // 5 segundos
+
 export async function POST(request: Request) {
   try {
     const propertyData = await request.json()
@@ -13,8 +16,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // In production, this would call the Python ML model
-    // For now, we'll implement the same logic in TypeScript
+    console.log("[v0] Tentando consultar API externa...")
+    const externalResult = await tryExternalAPI(propertyData)
+
+    if (externalResult.success) {
+      console.log("[v0] API externa respondeu com sucesso")
+      return NextResponse.json(externalResult.data)
+    }
+
+    console.log("[v0] API externa falhou, usando modelo local como fallback:", externalResult.error)
     const prediction = calculatePrediction(propertyData)
     const marketAnalysis = calculateMarketAnalysis(propertyData, prediction.predicted_price)
     const suggestions = generateSuggestions(propertyData, prediction.predicted_price)
@@ -23,10 +33,92 @@ export async function POST(request: Request) {
       prediction,
       market_analysis: marketAnalysis,
       optimization_suggestions: suggestions,
+      fallback_used: true, // Indica que usou o modelo local
     })
   } catch (error) {
-    console.error("Prediction error:", error)
+    console.error("[v0] Prediction error:", error)
     return NextResponse.json({ error: "Erro ao processar a previsão" }, { status: 500 })
+  }
+}
+
+async function tryExternalAPI(propertyData: any): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    // Mapear dados do formulário para o formato da API externa
+    const externalPayload = {
+      city: propertyData.city,
+      neighborhood: propertyData.neighborhood,
+      area_first_floor_sqm: Number.parseFloat(propertyData.area),
+      has_second_floor: Number.parseInt(propertyData.bedrooms) > 2, // Inferir segundo andar baseado em quartos
+      bathrooms: Number.parseInt(propertyData.bathrooms),
+      kitchen_quality_excellent: propertyData.furnished === "yes", // Inferir qualidade da cozinha
+    }
+
+    console.log("[v0] Payload para API externa:", JSON.stringify(externalPayload))
+
+    // Criar promise com timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT)
+
+    const response = await fetch(EXTERNAL_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(externalPayload),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      throw new Error(`API retornou status ${response.status}`)
+    }
+
+    const externalData = await response.json()
+    console.log("[v0] Resposta da API externa:", JSON.stringify(externalData))
+
+    // Adaptar resposta da API externa para o formato esperado pelo frontend
+    const adaptedData = adaptExternalResponse(externalData, propertyData)
+
+    return { success: true, data: adaptedData }
+  } catch (error: any) {
+    const errorMessage =
+      error.name === "AbortError" ? "Timeout ao conectar com API externa" : error.message || "Erro desconhecido"
+
+    return { success: false, error: errorMessage }
+  }
+}
+
+function adaptExternalResponse(externalData: any, originalPropertyData: any) {
+  const predictedPrice = externalData.price_prediction
+
+  // Converter sugestões da API externa para o formato esperado
+  const suggestions = (externalData.suggestions || []).map((suggestion: any) => ({
+    feature: suggestion.tip,
+    impact: suggestion.value_increase > 300 ? "high" : suggestion.value_increase > 150 ? "medium" : "low",
+    price_increase: suggestion.value_increase,
+    description: suggestion.reason,
+    roi_months: Math.round((suggestion.value_increase * 12) / 100), // Estimativa de ROI
+  }))
+
+  return {
+    prediction: {
+      predicted_price: predictedPrice,
+      confidence_interval: {
+        min: Math.round(predictedPrice * 0.9 * 100) / 100,
+        max: Math.round(predictedPrice * 1.1 * 100) / 100,
+      },
+      feature_importance: {
+        area: Math.round(predictedPrice * 0.4),
+        bedrooms: Math.round(predictedPrice * 0.15),
+        bathrooms: Math.round(predictedPrice * 0.1),
+        parking: Math.round(predictedPrice * 0.1),
+      },
+      model_version: "external-api",
+    },
+    market_analysis: calculateMarketAnalysis(originalPropertyData, predictedPrice),
+    optimization_suggestions:
+      suggestions.length > 0 ? suggestions : generateSuggestions(originalPropertyData, predictedPrice),
   }
 }
 
