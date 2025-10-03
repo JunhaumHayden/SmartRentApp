@@ -1,0 +1,14 @@
+
+services:
+  smartrent-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      # Montar o diretório de scripts para acesso ao modelo ML
+      - ./scripts:/app/scripts:ro
